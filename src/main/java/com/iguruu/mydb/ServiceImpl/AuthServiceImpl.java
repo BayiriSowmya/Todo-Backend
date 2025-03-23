@@ -7,8 +7,9 @@ import com.iguruu.mydb.Repository.UserRepository;
 import com.iguruu.mydb.Service.AuthService;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder; // ✅ Use PasswordEncoder
 import org.springframework.stereotype.Service;
+
 import java.util.Optional;
 
 @Service
@@ -18,20 +19,27 @@ public class AuthServiceImpl implements AuthService {
     private UserRepository userRepository;
 
     @Autowired
-    private BCryptPasswordEncoder passwordEncoder;
+    private PasswordEncoder passwordEncoder; // ✅ FIX: Change to PasswordEncoder
 
     @Override
     public String register(UserDto userDto) {
         if (userRepository.existsByUserName(userDto.getUserName())) {
-            return "Username already taken!";
+            return "Error: Username is already taken!";
+        }
+        if (userRepository.existsByEmail(userDto.getEmail())) {
+            return "Error: Email is already registered!";
+        }
+        if (userDto.getFullName() == null || userDto.getFullName().trim().isEmpty()) {
+            return "Error: Full name cannot be empty!";
         }
 
         User newUser = new User();
         newUser.setUserName(userDto.getUserName());
-        newUser.setPassword(passwordEncoder.encode(userDto.getPassword())); // ✅ Hashing password
+        newUser.setPassword(passwordEncoder.encode(userDto.getPassword())); // ✅ Hash password
         newUser.setEmail(userDto.getEmail());
-        userRepository.save(newUser);
+        newUser.setFullName(userDto.getFullName());
 
+        userRepository.save(newUser);
         return "User registered successfully!";
     }
 
@@ -41,15 +49,13 @@ public class AuthServiceImpl implements AuthService {
 
         if (userOpt.isPresent()) {
             User user = userOpt.get();
-
-            // ✅ Fix: Compare hashed password correctly
             if (passwordEncoder.matches(loginDto.getPassword(), user.getPassword())) {
                 return "Login successful!";
             } else {
-                return "Invalid credentials";
+                return "Error: Invalid username or password!";
             }
         } else {
-            return "Invalid credentials";
+            return "Error: Invalid username or password!";
         }
     }
 }
